@@ -93,15 +93,18 @@ pub struct ProfileWithStatus {
 }
 
 /// Cookie structure for import/export
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Cookie {
     pub name: String,
     pub value: String,
     pub domain: String,
     pub path: String,
+    #[serde(alias = "expirationDate")]
     pub expires: Option<f64>,
-    pub http_only: bool,
-    pub secure: bool,
+    #[serde(alias = "httpOnly")]
+    pub http_only: Option<bool>,
+    pub secure: Option<bool>,
+    #[serde(alias = "sameSite")]
     pub same_site: Option<String>,
 }
 
@@ -526,8 +529,9 @@ pub async fn import_cookies(
     cookies_json: String,
 ) -> Result<ApiResponse<()>, ()> {
     // Validate JSON
-    if serde_json::from_str::<Vec<Cookie>>(&cookies_json).is_err() {
-        return Ok(ApiResponse::err("Invalid cookies JSON format".to_string()));
+    match serde_json::from_str::<Vec<Cookie>>(&cookies_json) {
+        Ok(_) => (),
+        Err(e) => return Ok(ApiResponse::err(format!("Invalid cookies JSON format: {}", e))),
     }
 
     let cookies_path = state.db.get_cookies_path(&profile_id);

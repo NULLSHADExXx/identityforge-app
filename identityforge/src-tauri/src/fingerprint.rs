@@ -201,9 +201,17 @@ impl FingerprintGenerator {
 
     /// Generate a fingerprint for a specific platform
     pub fn generate_for_platform(&mut self, target_platform: &str) -> Fingerprint {
+        // Map friendly names to internal platform identifiers
+        let search_term = match target_platform.to_lowercase().as_str() {
+            "windows" => "win32",
+            "macos" | "mac" => "macintel",
+            "linux" => "linux",
+            _ => target_platform,
+        };
+
         let platform_agents: Vec<_> = USER_AGENTS
             .iter()
-            .filter(|(p, _)| p.to_lowercase().contains(&target_platform.to_lowercase()))
+            .filter(|(p, _)| p.to_lowercase().contains(&search_term.to_lowercase()))
             .collect();
 
         let (platform, user_agent) = if platform_agents.is_empty() {
