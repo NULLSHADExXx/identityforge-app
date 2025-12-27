@@ -1,0 +1,73 @@
+name: Build Windows Installers
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install Rust target for Windows
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: identityforge/src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: './identityforge/pnpm-lock.yaml'
+
+      - name: Install frontend dependencies
+        working-directory: ./identityforge
+        run: pnpm install
+
+      - name: Build Tauri app for Windows
+        working-directory: ./identityforge
+        run: pnpm tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+
+      - name: List build outputs
+        run: |
+          echo "=== NSIS Installer ==="
+          dir identityforge\src-tauri\target\release\bundle\nsis
+          echo "=== MSI Installer ==="
+          dir identityforge\src-tauri\target\release\bundle\msi
+
+      - name: Upload NSIS installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IdentityForge-Windows-exe
+          path: identityforge/src-tauri/target/release/bundle/nsis/*.exe
+          retention-days: 30
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: IdentityForge-Windows-msi
+          path: identityforge/src-tauri/target/release/bundle/msi/*.msi
+          retention-days: 30
